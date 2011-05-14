@@ -1,0 +1,13 @@
+T(HighCard)
+T(Pair)
+T(TwoPair)
+T(ThreeKind)
+T(FullHouse)
+T(FourKind)
+T(Flush)
+T(Straight)
+T(StraightFlush)
+
+T(PokerHandsMax)
+
+#undef T
