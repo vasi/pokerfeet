@@ -8,6 +8,7 @@ using namespace std;
 typedef int Index;
 const Index IndexMax = 52;
 enum Suit { Club = 0, Diamond, Heart, Spade, SuitMax };
+enum Color { Black = 0, Red, ColorMax };
 typedef int Number;
 const Number NumMax = IndexMax / SuitMax;
 const Number Ace = NumMax;
@@ -25,6 +26,10 @@ struct Card {
 	void id(CardID c) const {
 		c[0] = NumChar[num];
 		c[1] = SuitChar[suit];
+	}
+	
+	Color color() const {
+		return (suit == Diamond || suit == Heart) ? Red : Black;
 	}
 };
 
@@ -101,12 +106,15 @@ struct Hand {
 	}
 	
 	void findPokerHands() {
-		vector<int> nums(NumMax), snums;
+		vector<int> nums(NumMax), suits(SuitMax), colors(ColorMax);
 		for (int i = 0; i < HandSize; ++i) {
-			Number n = cards[i].num;
-			++nums[n];
+			Card &c = cards[i];
+			++nums[c.num];
+			++suits[c.suit];
+			++colors[c.color()];
 		}
-		snums = nums;
+		
+		vector<int> snums = nums;
 		sort(snums.rbegin(), snums.rend());
 		if (snums[0] >= 4)
 			addHand(FourKind);
@@ -116,15 +124,12 @@ struct Hand {
 			addHand(snums[1] == 2 ? TwoPair : Pair);
 		
 		bool flush = false;
-		vector<int> suits(SuitMax);
-		for (int i = 0; i < HandSize; ++i)
-			++suits[cards[i].suit];
 		for (int i = 0; i < SuitMax; ++i) {
 			if (suits[i] == HandSize) {
-				flush = true;
-				break;
+				flush = true; break;
 			}
 		}
+		bool colFlush = (colors[Black] == HandSize || colors[Red] == HandSize);
 		
 		bool straight = false;
 		int strCount = 0;
@@ -137,12 +142,12 @@ struct Hand {
 			}
 		}
 		
-		if (straight && flush)
-			addHand(StraightFlush);
-		else if (straight)
-			addHand(Straight);
-		else if (flush)
-			addHand(Flush);
+		if (straight) {
+			if (flush) addHand(StraightFlush);
+			else if (colFlush) addHand(StraightColorFlush);
+			else addHand(Straight);
+		} else if (flush) addHand(Flush);
+		else if (colFlush) addHand(ColorFlush);
 		
 		if (phands.bits.none())
 			addHand(HighCard);
@@ -193,7 +198,7 @@ void orderTypes() {
 				bestCount = counts[h];
 			}
 		}
-		fprintf(stderr, "%-15s: %7d\n", PokerHandNames[bestHand], bestCount);
+		fprintf(stderr, "%-20s: %7d\n", PokerHandNames[bestHand], bestCount);
 		remain -= bestCount;
 		
 		// remove those hands

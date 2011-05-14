@@ -8,6 +8,13 @@ T(Flush)
 T(Straight)
 T(StraightFlush)
 
+T(Straight4)
+T(Flush4)
+T(StraightFlush4)
+T(ColorFlush)
+T(StraightColorFlush)
+T(StraightColorFlush4)
+
 T(PokerHandsMax)
 
 #undef T
