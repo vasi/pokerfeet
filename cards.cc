@@ -3,12 +3,31 @@
 #include <vector>
 #include <algorithm>
 #include <bitset>
+#include <cstdarg>
 using namespace std;
+
+enum Suit { Club = 0, Diamond, Heart, Spade, SuitMax, SuitNOK };
+enum Color { Black = 0, Red, ColorMax };
+
+struct SuitSet {
+	bitset<SuitMax> bits;
+	
+	SuitSet(Suit s1, Suit s2 = SuitNOK, Suit s3 = SuitNOK, Suit s4 = SuitNOK) {
+		bits.set(s1);
+		if (s2 != SuitNOK) bits.set(s2);
+		if (s3 != SuitNOK) bits.set(s3);
+		if (s4 != SuitNOK) bits.set(s4);
+	}
+	SuitSet(unsigned long u) : bits(u) { }
+	
+	bool include(Suit s) const { return bits.test(s); }
+};
+const SuitSet BlackSet(Club, Spade);
+const SuitSet RedSet(Diamond, Heart);
+const SuitSet AllSuits((1 << SuitMax) - 1);
 
 typedef int Index;
 const Index IndexMax = 52;
-enum Suit { Club = 0, Diamond, Heart, Spade, SuitMax };
-enum Color { Black = 0, Red, ColorMax };
 typedef int Number;
 const Number NumMax = IndexMax / SuitMax;
 const Number Ace = NumMax;
@@ -29,7 +48,7 @@ struct Card {
 	}
 	
 	Color color() const {
-		return (suit == Diamond || suit == Heart) ? Red : Black;
+		return RedSet.include(suit) ? Red : Black;
 	}
 };
 
@@ -50,7 +69,31 @@ struct PokerHandSet {
 	bool has(PokerHand p) const { return has((int)p); }
 };
 
+
 const int HandSize = 5;
+
+struct NumberSet {
+	Card ordered[HandSize];
+	vector<size_t> offs, counts;
+	
+	NumberSet(Card *cs) : offs(NumMax), counts(NumMax) {
+		int ci = 0;
+		for (int i = 0; i < HandSize; ++i) {
+			Card &c = cs[i];
+			ordered[ci++] = c;
+			++counts[c.num];
+		}
+		
+		for (Number n = 1; (size_t)n < offs.size(); ++n) {
+			offs[n] = offs[n-1] + counts[n-1];
+		}
+	}
+	
+	size_t count(Number n) const { return counts[n]; }
+	const Card *cards(Number n) const { return ordered + offs[n]; }
+};
+
+
 struct Hand {
 	Card cards[HandSize];
 	PokerHandSet phands;
@@ -105,16 +148,38 @@ struct Hand {
 		return true;
 	}
 	
+	size_t straight(NumberSet &nums, SuitSet suits) {
+		size_t best = 0, cur = 0;
+		for (Number n = 0; n <= Ace; ++n) {
+			Number nidx = (n == Ace) ? 0 : n;
+			
+			bool found = false;
+			const Card *c = nums.cards(nidx);
+			for (size_t ct = nums.count(nidx); ct > 0; --ct, ++c) {
+				if (suits.include(c->suit)) {
+					found = true;
+					break;
+				}
+			}
+			
+			if (found)
+				best = max(best, ++cur);
+			else
+				cur = 0;
+		}
+		return best;
+	}
+	
 	void findPokerHands() {
-		vector<int> nums(NumMax), suits(SuitMax), colors(ColorMax);
+		vector<int> suits(SuitMax), colors(ColorMax);
 		for (int i = 0; i < HandSize; ++i) {
 			Card &c = cards[i];
-			++nums[c.num];
 			++suits[c.suit];
 			++colors[c.color()];
 		}
+		NumberSet nums(cards);
 		
-		vector<int> snums = nums;
+		vector<size_t> snums = nums.counts;
 		sort(snums.rbegin(), snums.rend());
 		if (snums[0] >= 4)
 			addHand(FourKind);
@@ -130,19 +195,19 @@ struct Hand {
 		}
 		bool colFlush = (colors[Black] == HandSize || colors[Red] == HandSize);
 		
-		bool straight = false;
-		int strCount = 0;
-		for (Number n = 0; n <= Ace; ++n) {
-			Number ni = (n == Ace) ? 0 : n;
-			strCount = nums[ni] ? (strCount + 1) : 0;
-			if (strCount == 4) addHand(Straight4);
-			if (strCount == 5) {
-				straight = true;
+		size_t str = straight(nums, AllSuits);
+		for (int i = 0; i < SuitMax; ++i) {
+			if (straight(nums, SuitSet((Suit)i)) == 4) {
+				addHand(StraightFlush4);
 				break;
 			}
 		}
+		if (!phands.has(StraightFlush4) &&
+			(straight(nums, BlackSet) == 4 || straight(nums, RedSet) == 4))
+				addHand(StraightColorFlush4);
 		
-		if (straight) {
+		if (str == 4) addHand(Straight4);		
+		if (str == 5) {
 			if (flush) addHand(StraightFlush);
 			else if (colFlush) addHand(StraightColorFlush);
 			else addHand(Straight);
