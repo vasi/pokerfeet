@@ -123,12 +123,11 @@ struct Hand {
 		else if (snums[0] == 2)
 			addHand(snums[1] == 2 ? TwoPair : Pair);
 		
-		bool flush = false, flush4 = false;
+		bool flush = false;
 		for (int i = 0; i < SuitMax; ++i) {
 			if (suits[i] == HandSize) flush = true;
-			if (suits[i] == 4) flush4 = true;
+			if (suits[i] == 4) addHand(Flush4);
 		}
-		if (flush4) addHand(Flush4);
 		bool colFlush = (colors[Black] == HandSize || colors[Red] == HandSize);
 		
 		bool straight = false;
@@ -136,6 +135,7 @@ struct Hand {
 		for (Number n = 0; n <= Ace; ++n) {
 			Number ni = (n == Ace) ? 0 : n;
 			strCount = nums[ni] ? (strCount + 1) : 0;
+			if (strCount == 4) addHand(Straight4);
 			if (strCount == 5) {
 				straight = true;
 				break;
