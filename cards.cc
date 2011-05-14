@@ -104,6 +104,7 @@ struct Hand {
 		findPokerHands();
 	}
 	
+	bool is(PokerHand p) { return phands.has(p); }
 	void addHand(PokerHand p) { phands.set(p); }
 	
 	void dump(FILE *f = stderr) const {
@@ -229,7 +230,7 @@ void allHands(HandsList &hlist) {
 		// 	fprintf(stderr, "%d\n", ip[0]);
 		// 	p = ip[0];
 		// }
-//		if (h.phands.has(StraightFlush)) h.dump(stdout);
+//		if (h.is(StraightFlush4) || h.is(StraightFlush)) h.dump(stdout);
 		hlist.push_back(h.phands);
 	} while (Hand::nextHand(ip, h));
 //exit(0);
@@ -277,7 +278,7 @@ void orderTypes() {
 
 int main(void) {
 #if 0
-	Index ip[HandSize] = { 0, 1, 2, 4, 16 };
+	Index ip[HandSize] = { 0, 2, 10, 11, 12 };
 	Hand h(ip);
 	h.dump(stdout);
 	return 0;
