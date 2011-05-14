@@ -2,6 +2,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include <bitset>
 using namespace std;
 
 typedef int Index;
@@ -37,11 +38,17 @@ const char *PokerHandNames[] = {
 	#include "pokerHands.def"
 };
 
+struct PokerHandSet {
+	bitset<PokerHandsMax> bits;
+	void set(PokerHand p) { bits.set(p); }
+	bool has(int i) const { return bits.test(i); }
+	bool has(PokerHand p) const { return has((int)p); }
+};
+
 const int HandSize = 5;
-typedef set<PokerHand> PokerHands;
 struct Hand {
 	Card cards[HandSize];
-	PokerHands phands;
+	PokerHandSet phands;
 	
 	Hand(Index *ip) {
 		for (int i = 0; i < HandSize; ++i)
@@ -49,8 +56,7 @@ struct Hand {
 		findPokerHands();
 	}
 	
-	void addHand(PokerHand t) { phands.insert(t); }
-	bool hasHand(PokerHand t) { return phands.find(t) != phands.end(); }
+	void addHand(PokerHand p) { phands.set(p); }
 	
 	void dump(FILE *f = stderr) const {
 		CardID cid;
@@ -61,9 +67,13 @@ struct Hand {
 			fprintf(f, "%s", cid);
 		}
 		fprintf(f, ": ");
-		for (PokerHands::const_iterator i = phands.begin(); i != phands.end(); ++i) {
-			if (i != phands.begin()) fprintf(f, ", ");
-			fprintf(f, "%s", PokerHandNames[*i]);
+		bool first = true;
+		for (size_t i = 0; i < PokerHandsMax; ++i) {
+			if (phands.has(i)) {
+				if (!first) fprintf(f, ", ");
+				first = false;
+				fprintf(f, "%s", PokerHandNames[i]);
+			}
 		}
 		fprintf(f, "\n");
 	}
@@ -105,11 +115,16 @@ struct Hand {
 		else if (snums[0] == 2)
 			addHand(snums[1] == 2 ? TwoPair : Pair);
 		
+		bool flush = false;
 		vector<int> suits(SuitMax);
 		for (int i = 0; i < HandSize; ++i)
 			++suits[cards[i].suit];
-		sort(suits.rbegin(), suits.rend());
-		bool flush = (suits[0] == HandSize);
+		for (int i = 0; i < SuitMax; ++i) {
+			if (suits[i] == HandSize) {
+				flush = true;
+				break;
+			}
+		}
 		
 		bool straight = false;
 		int strCount = 0;
@@ -129,12 +144,12 @@ struct Hand {
 		else if (flush)
 			addHand(Flush);
 		
-		if (phands.empty())
+		if (phands.bits.none())
 			addHand(HighCard);
 	}
 };
 
-typedef vector<PokerHands> HandsList;
+typedef vector<PokerHandSet> HandsList;
 void allHands(HandsList &hlist) {
 	Index ip[HandSize];
 	Hand h = Hand::firstHand(ip);
@@ -159,9 +174,13 @@ void orderTypes() {
 	while (remain) {
 		// count
 		fill(counts.begin(), counts.end(), 0);
-		for (HandsList::const_iterator i = hlist.begin(); i != hlist.end(); ++i) {
-			for (PokerHands::const_iterator t = i->begin(); t != i->end(); ++t)
-				++counts[*t];
+		for (HandsList::const_iterator s = hlist.begin(); s != hlist.end(); ++s) {
+			if (s->bits.any()) {
+				for (int j = 0; j < PokerHandsMax; ++j) {
+					if (s->has(j))
+						++counts[j];
+				}
+			}
 		}
 		
 		// find best
@@ -179,8 +198,8 @@ void orderTypes() {
 		
 		// remove those hands
 		for (HandsList::iterator i = hlist.begin(); i != hlist.end(); ++i) {
-			if (i->find(bestHand) != i->end())
-				i->clear();
+			if (i->has(bestHand))
+				i->bits.reset();
 		}
 	}
 }
