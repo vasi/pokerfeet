@@ -62,7 +62,7 @@ const char *PokerHandNames[] = {
 	#include "pokerHands.def"
 };
 
-struct PokerHandSet {
+struct PokerHandSet { // Eg: "Hand x is a flush, and a two-pair"
 	bitset<PokerHandsMax> bits;
 	void set(PokerHand p) { bits.set(p); }
 	bool has(int i) const { return bits.test(i); }
@@ -72,20 +72,20 @@ struct PokerHandSet {
 
 const int HandSize = 5;
 
-struct NumberSet {
+struct NumberSet { // Group cards by face value
 	Card ordered[HandSize];
 	vector<size_t> offs, counts;
 	
 	NumberSet(Card *cs) : offs(NumMax), counts(NumMax) {
 		int ci = 0;
-		for (int i = 0; i < HandSize; ++i) {
-			Card &c = cs[i];
-			ordered[ci++] = c;
-			++counts[c.num];
-		}
-		
-		for (Number n = 1; (size_t)n < offs.size(); ++n) {
-			offs[n] = offs[n-1] + counts[n-1];
+		for (Number n = 0; n < NumMax; ++n) {
+			offs[n] = ci;
+			for (int p = 0; p < HandSize; ++p) {
+				if (cs[p].num == n) {
+					++counts[n];
+					ordered[ci++] = cs[p];
+				}
+			}
 		}
 	}
 	
@@ -229,9 +229,10 @@ void allHands(HandsList &hlist) {
 		// 	fprintf(stderr, "%d\n", ip[0]);
 		// 	p = ip[0];
 		// }
-//		h.dump(stdout);
+//		if (h.phands.has(StraightFlush)) h.dump(stdout);
 		hlist.push_back(h.phands);
 	} while (Hand::nextHand(ip, h));
+//exit(0);
 }
 
 void orderTypes() {
@@ -253,7 +254,7 @@ void orderTypes() {
 			}
 		}
 		
-		// find best
+		// find best hand: the rarest one
 		PokerHand bestHand = PokerHandsMax;
 		int bestCount = remain + 1;
 		for (size_t i = 0; i < counts.size(); ++i) {
@@ -266,7 +267,7 @@ void orderTypes() {
 		fprintf(stderr, "%-20s: %7d\n", PokerHandNames[bestHand], bestCount);
 		remain -= bestCount;
 		
-		// remove those hands
+		// remove best hand
 		for (HandsList::iterator i = hlist.begin(); i != hlist.end(); ++i) {
 			if (i->has(bestHand))
 				i->bits.reset();
@@ -276,11 +277,12 @@ void orderTypes() {
 
 int main(void) {
 #if 0
-	Index ip[HandSize] = { 0, 9, 10, 11, 12 };
+	Index ip[HandSize] = { 0, 1, 2, 4, 16 };
 	Hand h(ip);
 	h.dump(stdout);
-#else
-	orderTypes();
+	return 0;
 #endif
+
+	orderTypes();
 	return 0;
 }
